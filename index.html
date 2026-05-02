@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Anemoia</title>
+
+<style>
+body{
+  margin:0;
+  background:#050505;
+  overflow:hidden;
+  font-family: "GFS Didot", serif;
+}
+
+/* ===== 🌤️ WEATHER ===== */
+.weather{
+  position:fixed;
+  top:20px;
+  left:20px;
+  z-index:50;
+
+  background:rgba(20,18,15,0.6);
+  backdrop-filter: blur(4px);
+
+  padding:14px 18px;
+  border-radius:20px;
+
+  color:#e8dcc0;
+  font-size:12px;
+  letter-spacing:1px;
+
+  border:1px solid rgba(125,112,80,0.2);
+
+  cursor:pointer;
+  transition:0.3s;
+}
+
+.weather:hover{
+  transform:scale(1.05);
+}
+
+.weather-temp{
+  font-size:22px;
+}
+
+/* ===== 🌫️ OVERLAY ===== */
+.weather-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0);
+  backdrop-filter: blur(0px);
+
+  opacity:0;
+  pointer-events:none;
+  transition:0.6s ease;
+
+  z-index:100;
+}
+
+.weather-overlay.show{
+  opacity:1;
+  pointer-events:auto;
+  background:rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+}
+
+/* 🌒 图片从天气长出来 */
+#weatherImage{
+  position:fixed;
+  width:200px;
+  border-radius:10px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.6);
+
+  transform-origin:top left;
+  transition: all 0.8s cubic-bezier(.7,0,.2,1);
+}
+
+/* ===== 🌍 WORLD ===== */
+.world{
+  position:relative;
+  width:100vw;
+  height:100vh;
+}
+
+/* ===== 🏠 VILLAGE ===== */
+.village{
+  position:absolute;
+  width:1400px;
+  height:1000px;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%) scale(1);
+  transition:1.2s ease;
+}
+
+.zoomed{
+  transform:translate(-50%,-50%) scale(2.2);
+}
+
+/* ===== 🏠 HOUSE ===== */
+.house{
+  position:absolute;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center; 
+}
+
+.house img{
+  width:250px;
+  filter: grayscale(100%) brightness(1.3);
+  transition:0.4s;
+}
+a {
+  color: #785e21;
+  font-family: "GFS Didot", serif;
+}
+.house:hover img{
+  transform:scale(1.08);
+  filter: grayscale(0%) brightness(1.6);
+}
+
+.month-label{
+  margin-top:-8px;
+  font-size:12px;
+  color:#d8cca8;
+
+  width:100%;            
+  text-align:center;    
+}
+/* ===== 🌙 CURVED MONTH TEXT ===== */
+.curve-text{
+  position:absolute;
+  top:-40px;
+  left:0;
+  width:100%;
+  pointer-events:none;
+}
+
+.curve-text text{
+  fill:#d8cca8;
+  font-size:12px;
+  letter-spacing:2px;
+  font-family:"GFS Didot", serif;
+}
+/* 门 */
+.house::before{
+  content:"";
+  position:absolute;
+  width:40%;
+  height:100%;
+  background:rgba(0,0,0,0.4);
+  left:0;
+  transform-origin:left;
+  transform:scaleX(1);
+  transition:0.6s;
+}
+
+.house:hover::before{
+  transform:scaleX(0);
+}
+
+/* ===== 内部 ===== */
+.interior{
+  position:absolute;
+  width:100%;
+  height:100%;
+  background:#0b0b0b;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  opacity:0;
+  pointer-events:none;
+  transition:1s;
+}
+
+.interior.show{
+  opacity:1;
+  pointer-events:auto;
+}
+
+.card{
+  width:420px;
+  padding:50px;
+  background:#f4f1ea;
+  text-align:center;
+}
+
+.back{
+  margin-top:20px;
+  cursor:pointer;
+}
+.invitation-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.5s;
+  z-index: 200;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 添加这个让卡片居中 */
+.invitation-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+
+
+
+.invitation-card {
+  width: 100vw;
+  height: 100vh;
+  background: transparent;
+  padding: 0;
+}
+
+.invitation-flip-card {
+  width: 90vw;
+  max-width: 1400px;
+}
+
+.invitation-flip-card img {
+  width: 100%;
+  height: auto;
+}
+
+/* 按钮样式保持但背景透明一点 */
+.close-invite {
+  margin-top: 20px;
+  cursor: pointer;
+  color: #e8dcc0;
+  font-family: monospace;
+  font-size: 16px;
+  display: inline-block;
+  padding: 10px 24px;
+  background: rgba(0,0,0,0.5);
+  border-radius: 40px;
+  backdrop-filter: blur(4px);
+}
+
+.close-invite:hover {
+  background: rgba(0,0,0,0.7);
+}
+
+/* 翻转卡片容器 */
+.flip-card {
+  position: fixed;
+  width: 200px;
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  transform-origin: top left;
+  transition: all 0.8s cubic-bezier(.7,0,.2,1);
+  cursor: pointer;
+  background: transparent;
+}
+
+.flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+  border-radius: 10px;
+}
+
+/* 翻转状态 */
+.invitation-flip-card.flipped .flip-inner {
+  transform: rotateY(180deg);
+}
+.invitation-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 正面和背面 */
+.flip-front, .flip-back {
+  position: relative;
+  width: 100%;
+  backface-visibility: hidden;
+  border-radius: 10px;
+}
+
+.flip-front {
+  transform: rotateY(0deg);
+}
+
+.flip-front img {
+  width: 100%;
+  display: block;
+  border-radius: 10px;
+}
+
+.flip-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotateY(180deg);
+  background: #f4f1ea;
+  color: #5a4a2e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-family: "GFS Didot", serif;
+  font-size: 14px;
+  padding: 20px;
+  box-sizing: border-box;
+  text-align: center;
+  line-height: 1.6;
+  box-shadow: inset 0 0 0 1px rgba(210,175,100,0.3);
+}
+.invitation-card{
+  position: relative;
+  max-width: 85vw;
+  max-height: 85vh;
+
+  background: #f4f1ea;
+  border-radius: 20px;
+  padding: 20px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  transform: scale(0.9);
+  transition: 0.4s;
+}
+.back-text {
+  word-break: keep-all;
+}
+#invitationCard{
+  position: relative;
+  width: 90vw;
+  max-width: 1400px;
+  transform-origin: top left;
+  transition: all 0.8s cubic-bezier(.7,0,.2,1);
+}
+.offset-left{
+  transform: translateX(-10px);
+}
+
+.offset-right{
+  transform: translateX(10px);
+}
+
+/* 放大后的翻转卡片需要适配 */
+#weatherImage.zoomed-weather {
+  width: 60vw !important;
+  left: 20vw !important;
+  top: 20vh !important;
+  cursor: pointer;
+}
+/* ===== 🕰️ CLOCK ===== */
+.clock{
+  position:fixed;
+  top:150px;
+  left:20px;
+  z-index:50;
+
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+
+  background:rgba(20,18,15,0.6);
+  backdrop-filter: blur(4px);
+  padding:16px;
+  border-radius:20px;
+
+  border:1px solid rgba(125,112,80,0.2);
+  color:#e8dcc0;
+}
+
+/* 表盘 */
+.clock-face{
+  position:relative;
+  width:80px;
+  height:80px;
+  border-radius:50%;
+  border:1px solid rgba(200,180,120,0.3);
+}
+
+/* 指针 */
+.hand{
+  position:absolute;
+  left:50%;
+  bottom:50%;
+  transform-origin:bottom;
+  transform:translateX(-50%) rotate(0deg);
+  background:#e8dcc0;
+}
+
+.hour{
+  width:2px;
+  height:22px;
+}
+
+.minute{
+  width:2px;
+  height:30px;
+}
+
+.second{
+  width:1px;
+  height:36px;
+  background:#c8a96a;
+}
+
+/* 中心点 */
+.center-dot{
+  position:absolute;
+  width:6px;
+  height:6px;
+  background:#e8dcc0;
+  border-radius:50%;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+}
+
+/* 数字时间 */
+.clock-digital{
+  font-size:12px;
+  letter-spacing:2px;
+}
+/* ===== 🕰️ CLOCK OVERLAY ===== */
+.clock-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0);
+  backdrop-filter: blur(0px);
+  opacity:0;
+  pointer-events:none;
+  transition:0.6s ease;
+  z-index:150;
+}
+
+.clock-overlay.show{
+  opacity:1;
+  pointer-events:auto;
+  background:rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+}
+
+.flip-card.flipped .flip-inner {
+  transform: rotateY(180deg);
+}
+@media (max-width: 700px) {
+  .flip-back {
+    font-size: 10px;
+    padding: 12px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<!-- 🌤️ WEATHER -->
+<div class="weather" id="weather">
+  <div>Anemoia</div>
+  <div class="weather-temp" id="temp">--°</div>
+  <div id="desc">loading...</div>
+</div>
+
+<div class="clock" id="clock">
+  <div class="clock-face">
+    <div class="hand hour" id="hourHand"></div>
+    <div class="hand minute" id="minuteHand"></div>
+    <div class="hand second" id="secondHand"></div>
+    <div class="center-dot"></div>
+  </div>
+  <div class="clock-digital" id="digitalTime">--:--</div>
+</div>
+
+<div class="clock-overlay" id="clockOverlay" onclick="closeClockImage()">
+  <img src="Images/clock.png" id="clockImage" onclick="event.stopPropagation()">
+</div>
+<!-- 🌫️ IMAGE -->
+<div class="weather-overlay" id="weatherOverlay" onclick="closeWeatherCard()">
+  <div class="flip-card" id="weatherImage" onclick="event.stopPropagation()">
+  <div class="flip-inner">
+    <div class="flip-front">
+      <img src="Images/weather.jpg" alt="weather front">
+    </div>
+ <div class="flip-back">
+  <img src="Images/Rainy.jpg" alt="weather back" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">
+</div>
+  </div>
+</div>
+</div>
+
+<div class="world">
+
+ 
+  <div class="village" id="village">
+
+  <!-- 1 -->
+  <div class="house" style="top:150px; left:150px" onclick="enterHouse(1)">
+    <img src="Images/1.png">
+    <svg class="curve-text" viewBox="0 0 200 100">
+      <path id="c1" d="M20,80 Q100,20 180,80" fill="transparent"/>
+      <text><textPath href="#c1" startOffset="50%" text-anchor="middle">January</textPath></text>
+    </svg>
+  </div>
+
+  <!-- 2 -->
+  <div class="house" style="top:200px; left:400px" onclick="enterHouse(2)">
+    <img src="Images/2.png">
+    <svg class="curve-text" viewBox="0 0 200 100">
+      <path id="c2" d="M20,80 Q100,25 180,80"/>
+      <text><textPath href="#c2" startOffset="50%" text-anchor="middle">February</textPath></text>
+    </svg>
+  </div>
+
+  <!-- 3 -->
+  <div class="house" style="top:170px; left:700px" onclick="enterHouse(3)">
+    <img src="Images/3.png">
+    <svg class="curve-text" viewBox="0 0 200 100">
+      <path id="c3" d="M20,80 Q100,15 180,80"/>
+      <text><textPath href="#c3" startOffset="50%" text-anchor="middle">March</textPath></text>
+    </svg>
+  </div>
+
+  <!-- 4 -->
+  <div class="house" style="top:360px; left:1030px" onclick="enterHouse(4)">
+    <img src="Images/4.png">
+    <svg class="curve-text" viewBox="0 0 200 100">
+      <path id="c4" d="M20,80 Q100,30 180,80"/>
+      <text><textPath href="#c4" startOffset="50%" text-anchor="middle">April</textPath></text>
+    </svg>
+  </div>
+
+  <!-- 5 -->
+  <div class="house" style="top:500px; left:400px" onclick="enterHouse(5)">
+    <img src="Images/5.png">
+    <svg class="curve-text" viewBox="0 0 200 100">
+      <path id="c5" d="M20,80 Q100,20 180,80"/>
+      <text><textPath href="#c5" startOffset="50%" text-anchor="middle">May</textPath></text>
+    </svg>
+  </div>
+
+  <!-- 6 -->
+  <div class="house" style="top:600px; left:200px" onclick="enterHouse(6)">
+    <img src="Images/6.png">
+    <svg class="curve-text" viewBox="0 0 200 100">
+      <path id="c6" d="M20,80 Q100,25 180,80"/>
+      <text><textPath href="#c6" startOffset="50%" text-anchor="middle">June</textPath></text>
+    </svg>
+  </div>
+
+  <!-- 7 -->
+  <div class="house" style="top:550px; left:900px" onclick="enterHouse(7)">
+    <img src="Images/7.png">
+    <svg class="curve-text" viewBox="0 0 200 100">
+      <path id="c7" d="M20,80 Q100,10 180,80"/>
+      <text><textPath href="#c7" startOffset="50%" text-anchor="middle">July</textPath></text>
+    </svg>
+  </div>
+
+  <!-- 8 -->
+  <div class="house" style="top:600px; left:1150px" onclick="enterHouse(8)">
+    <img src="Images/8.png">
+    <svg class="curve-text" viewBox="0 0 200 100">
+      <path id="c8" d="M20,80 Q100,20 180,80"/>
+      <text><textPath href="#c8" startOffset="50%" text-anchor="middle">August</textPath></text>
+    </svg>
+  </div>
+
+  <!-- 9 -->
+  <div class="house" style="top:650px; left:600px" onclick="enterHouse(9)">
+    <img src="Images/9.png">
+    <svg class="curve-text" viewBox="0 0 200 100">
+      <path id="c9" d="M20,80 Q100,25 180,80"/>
+      <text><textPath href="#c9" startOffset="50%" text-anchor="middle">September</textPath></text>
+    </svg>
+  </div>
+
+  <!-- 10 -->
+  <div class="house" style="top:400px; left:700px" onclick="enterHouse(10)">
+    <img src="Images/10.png">
+    <svg class="curve-text" viewBox="0 0 200 100">
+      <path id="c10" d="M20,80 Q100,15 180,80"/>
+      <text><textPath href="#c10" startOffset="50%" text-anchor="middle">October</textPath></text>
+    </svg>
+  </div>
+
+  <!-- 11 -->
+  <div class="house" style="top:400px; left:50px" onclick="enterHouse(11)">
+    <img src="Images/11.png">
+    <svg class="curve-text" viewBox="0 0 200 100">
+      <path id="c11" d="M20,80 Q100,25 180,80"/>
+      <text><textPath href="#c11" startOffset="50%" text-anchor="middle">November</textPath></text>
+    </svg>
+  </div>
+
+  <!-- 12 -->
+  <div class="house" style="top:135px; left:1100px" onclick="enterHouse(12)">
+    <img src="Images/12.png">
+    <svg class="curve-text" viewBox="0 0 200 100">
+      <path id="c12" d="M20,80 Q100,20 180,80"/>
+      <text><textPath href="#c12" startOffset="50%" text-anchor="middle">December</textPath></text>
+    </svg>
+  </div>
+
+</div>
+      <!-- village 结束 -->
+
+  <div class="interior" id="interior">
+    <div class="card">
+      <h2 id="title"></h2>
+      <p>You are invited to the Poetry Gathering</p>
+      <a href="javascript:void(0)" onclick="showInvitation()">See the invitation</a>
+      <div class="back" onclick="exitHouse()">← return</div>
+    </div>
+  </div>  <!-- interior 结束 -->
+
+</div>  <!-- world 结束 -->
+
+
+<!-- 邀请函弹窗部分 -->
+<div class="invitation-overlay" id="invitationOverlay" onclick="closeInvitation()">
+    <!-- 翻转卡片直接作为独立元素，不是 fixed 定位 -->
+    <div class="invitation-flip-card" id="invitationCard" onclick="event.stopPropagation(); flipInvitation()">
+      <div class="flip-inner">
+        <div class="flip-front">
+          <img src="Images/Invitation.PNG">
+        </div>
+        <div class="flip-back">
+          <img src="Images/Backside.PNG" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">
+        </div>
+      </div>
+    </div>
+ 
+   
+  </div>
+
+
+<script>
+
+/* ===== 村庄 ===== */
+const village = document.getElementById("village");
+const interior = document.getElementById("interior");
+const months = [
+  "January", "February", "March", "April",
+  "May", "June", "July", "August",
+  "September", "October", "November", "December"
+];
+
+function enterHouse(id){
+  village.classList.add("zoomed");
+
+  setTimeout(()=>{
+    document.getElementById("title").innerText = months[id - 1];
+    interior.classList.add("show");
+  }, 600);
+}
+
+function exitHouse(){
+  interior.classList.remove("show");
+  village.classList.remove("zoomed");
+}
+
+/* ===== 🌤️ 天气 ===== */
+function getWeatherName(temp) {
+  if (temp <= 0) return "Low Saturation";
+  if (temp <= 5) return "Glaucous";
+  if (temp <= 10) return "Lucent";
+  if (temp <= 15) return " Halcyon";
+  if (temp <= 20) return "Heofonbeam";
+  if (temp <= 25) return "High Contrast";
+  return "Scorch";
+}
+async function loadWeather(){
+  try{
+    const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=40.74&longitude=-74.03&current_weather=true");
+    const data = await res.json();
+
+    document.getElementById("temp").innerText =
+      Math.round(data.current_weather.temperature) + "°C";
+
+ const temp = Math.round(data.current_weather.temperature);
+
+document.getElementById("temp").innerText = temp + "°C";
+document.getElementById("desc").innerText = getWeatherName(temp);
+
+  }catch{
+    document.getElementById("desc").innerText = "Glaucous";
+  }
+}
+loadWeather();
+
+/* ===== 🌫️ 从天气长出来 ===== */
+const weather = document.getElementById("weather");
+const overlay = document.getElementById("weatherOverlay");
+const img = document.getElementById("weatherImage");
+
+weather.addEventListener("click", openWeatherCard);
+
+
+let isWeatherZoomed = false;
+
+function openWeatherCard() {
+  const rect = weather.getBoundingClientRect();
+  const flipCard = document.getElementById("weatherImage");
+  
+  flipCard.style.left = rect.left + "px";
+  flipCard.style.top = rect.top + "px";
+  flipCard.style.width = rect.width + "px";
+  
+  overlay.classList.add("show");
+  
+  setTimeout(() => {
+    const w = window.innerWidth * 0.6;
+    const left = (window.innerWidth - w) / 2;
+    const top = (window.innerHeight - w * 0.65) / 2;
+    
+    flipCard.style.left = left + "px";
+    flipCard.style.top = top + "px";
+    flipCard.style.width = w + "px";
+    flipCard.classList.add("zoomed-weather");
+    isWeatherZoomed = true;
+  }, 30);
+}
+
+function closeWeatherCard() {
+  const rect = weather.getBoundingClientRect();
+  const flipCard = document.getElementById("weatherImage");
+  
+  // 如果有翻转状态，先复位
+  if (flipCard.classList.contains("flipped")) {
+    flipCard.classList.remove("flipped");
+  }
+  
+  flipCard.style.left = rect.left + "px";
+  flipCard.style.top = rect.top + "px";
+  flipCard.style.width = rect.width + "px";
+  flipCard.classList.remove("zoomed-weather");
+  isWeatherZoomed = false;
+  
+  setTimeout(() => {
+    overlay.classList.remove("show");
+  }, 600);
+}
+
+// 点击图片翻转（只在放大状态下生效）
+document.getElementById("weatherImage").addEventListener("click", function(e) {
+  e.stopPropagation();
+  if (isWeatherZoomed) {
+    this.classList.toggle("flipped");
+  }
+});
+
+document.addEventListener("keydown", e=>{
+  if(e.key==="Escape") closeWeatherCard();
+});
+
+
+function showInvitation() {
+  document.getElementById("invitationOverlay").classList.add("show");
+  // 重置翻转状态
+  document.getElementById("invitationCard").classList.remove("flipped");
+}
+
+function closeInvitation() {
+  document.getElementById("invitationOverlay").classList.remove("show");
+}
+
+function flipInvitation() {
+  document.getElementById("invitationCard").classList.toggle("flipped");
+}
+/* ===== 🕰️ CLOCK ===== */
+function updateClock(){
+  const now = new Date();
+
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+
+  const hourDeg = (hours % 12) * 30 + minutes * 0.5;
+  const minuteDeg = minutes * 6;
+  const secondDeg = seconds * 6;
+
+  document.getElementById("hourHand").style.transform =
+    `translateX(-50%) rotate(${hourDeg}deg)`;
+
+  document.getElementById("minuteHand").style.transform =
+    `translateX(-50%) rotate(${minuteDeg}deg)`;
+
+  document.getElementById("secondHand").style.transform =
+    `translateX(-50%) rotate(${secondDeg}deg)`;
+
+  document.getElementById("digitalTime").innerText =
+    `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}`;
+}
+
+setInterval(updateClock, 1000);
+updateClock();
+const clock = document.getElementById("clock");
+const clockOverlay = document.getElementById("clockOverlay");
+const clockImage = document.getElementById("clockImage");
+
+let isClockZoomed = false;
+
+clock.addEventListener("click", openClockImage);
+
+function openClockImage(){
+  const rect = clock.getBoundingClientRect();
+
+  clockImage.style.left = rect.left + "px";
+  clockImage.style.top = rect.top + "px";
+  clockImage.style.width = rect.width + "px";
+
+  clockOverlay.classList.add("show");
+
+  setTimeout(()=>{
+    const w = window.innerWidth * 0.6;
+    const left = (window.innerWidth - w)/2;
+    const top = (window.innerHeight - w*0.65)/2;
+
+    clockImage.style.left = left + "px";
+    clockImage.style.top = top + "px";
+    clockImage.style.width = w + "px";
+
+    clockImage.classList.add("zoomed-clock");
+    isClockZoomed = true;
+  },30);
+}
+
+function closeClockImage(){
+  const rect = clock.getBoundingClientRect();
+
+  clockImage.style.left = rect.left + "px";
+  clockImage.style.top = rect.top + "px";
+  clockImage.style.width = rect.width + "px";
+
+  clockImage.classList.remove("zoomed-clock");
+  isClockZoomed = false;
+
+  setTimeout(()=>{
+    clockOverlay.classList.remove("show");
+  },600);
+}
+</script>
+
+</body>
+</html>
